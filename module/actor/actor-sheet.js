@@ -193,6 +193,8 @@ export class VampireActorSheet extends ActorSheet {
   activateListeners (html) {
     super.activateListeners(html)
 
+    this._setupResources(html)
+
     // Everything below here is only needed if the sheet is editable
     if (!this.options.editable) return
 
@@ -230,6 +232,9 @@ export class VampireActorSheet extends ActorSheet {
 
     // Rollable Vampire powers.
     html.find('.power-rollable').click(this._onVampireRoll.bind(this))
+
+    html.find('.resource-value > .resource-value-step').click(this._onResourceValueChange.bind(this))
+    html.find('.resource-value > .resource-value-empty').click(this._onResourceValueEmpty.bind(this))
 
     // Drag events for macros.
     // if (this.actor.owner) {
@@ -563,5 +568,57 @@ export class VampireActorSheet extends ActorSheet {
     const dice2 = item.data.data.dice2 === 'discipline' ? disciplineValue : this.actor.data.data.abilities[item.data.data.dice2].value
     const dicePool = dice1 + dice2
     this._vampireRoll(dicePool, this.actor, `${item.data.name}`)
+  }
+
+  // There's gotta be a better way to do this but for the life of me I can't figure it out
+  _assignToActorField (fields, value) {
+    const actorData = duplicate(this.actor)
+    actorData.data[fields[1]][fields[2]][fields[3]] = value
+    this.actor.update(actorData)
+  }
+
+  _onResourceValueEmpty (event) {
+    event.preventDefault()
+    const element = event.currentTarget
+    const parent = $(element.parentNode)
+    const fieldStrings = parent[0].dataset.name
+    const fields = fieldStrings.split('.')
+    const steps = parent.find('.resource-value-empty')
+
+    steps.removeClass('active')
+    this._assignToActorField(fields, 0)
+  }
+
+  _onResourceValueChange (event) {
+    event.preventDefault()
+    const element = event.currentTarget
+    const dataset = element.dataset
+    const index = Number(dataset.index)
+    const parent = $(element.parentNode)
+    const fieldStrings = parent[0].dataset.name
+    const fields = fieldStrings.split('.')
+    const steps = parent.find('.resource-value-step')
+    if (index < 0 || index > steps.length) {
+      return
+    }
+
+    steps.removeClass('active')
+    steps.each(function (i) {
+      if (i <= index) {
+        $(this).addClass('active')
+      }
+    })
+    this._assignToActorField(fields, index + 1)
+  }
+
+  _setupResources (html) {
+    html.find('.resource-value').each(function () {
+      const value = Number(this.dataset.value)
+      $(this).find('.resource-value-step').each(function (i) {
+        if (i + 1 <= value) {
+          $(this).addClass('active')
+        }
+      })
+    })
   }
 }
